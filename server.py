@@ -3,16 +3,23 @@ import os
 
 #SIGNALS
 #commands are 4 bytes, big endian
-#1=init
-#2=list songs
-#3=request song
-#4=bye
-#5=shutdown
+
+CONNECT=1
+LIST=2
+PLAY=3
+EXIT=4
+SHUTDOWN=5
+VOLUME=6
 
 songs={}
 
 #your music directory here
+
 dir = 'Music'
+
+#volume goes from 0-10
+
+curVolume=3
 
 #iterate over filenames and add mp3 and wav files to the list of songs
 for filename in os.listdir(dir):
@@ -47,17 +54,17 @@ try:
     while (not done):
         command=int.from_bytes(cli.recv(4), "big")
         #greeting
-        if(command==1):
+        if(command==CONNECT):
             cli.send("HI".encode("ascii"))
             
         #send over the list of songs
-        elif(command==2):
+        elif(command==LIST):
             cli.send(songlist.encode("ascii"))
         #send await a songname from client (in ascii), send response
-        elif(command==3):
+        elif(command==PLAY):
             try:
                 song=cli.recv(256).decode("ascii")
-                #mp3 code here
+                #//TODO: actually play the mp3
                 if(song  in songs.keys()):
                     res=f"playing {song}"
                 else:
@@ -65,15 +72,27 @@ try:
             except:
                 res=f"communication error, please send request again"
             cli.send(res.encode("ascii"))
+        #send volume settings, await new volume
+        elif(command==VOLUME):
+            cli.send(f"Current Volume: {curVolume}\nSelect volume from 1-10".encode("ascii"))
+            #client sends over new volume as bytes
+            try: newVol=int.from_bytes(cli.recv(4),"big")
+            except: newVol=curVolume
+            curVolume=newVol
+            #TODO: implement volume change
+            cli.send(f"Current Volume: {curVolume}".encode("ascii"))
+            
         #send bye message
-        elif(command==4):
+        elif(command==EXIT):
             cli.send("Bye!".encode("ascii"))
         #remotely initiated shutdown
-        elif(command==5):
+        elif(command==SHUTDOWN):
             cli.send("Shutting Down".encode("ascii"))
             print("Initiated Remote Shutdown")
             done=True
         #reset command or the loop will run again
+        else:
+            cli.send("Invalid Command".encode("ascii"))            
         command=0    
     cli.close()
     
